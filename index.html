@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<head>
+    <style>
+        body {font-size: 150%;}
+        input[type=button] {width: 8em; height: 2em;}
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            let ws = new WebSocket("ws://127.0.0.1:5000/connect");
+            ws.onmessage = event => {
+                console.log(`[FROM SERVER] ${event.data}`);
+                let data = JSON.parse(event.data);
+
+                if (data.type === "connection-error")
+                    return;
+
+                let statusField = document.getElementById("status");
+
+                if (data.type === "ready-state") {
+                    statusField.textContent = data.value ? "ready" : "not ready";
+                    return;
+                }
+
+                let toggleReadyButton = document.getElementById("toggle-ready-button");
+                let playingElementsBlock = document.getElementById("playing-elements-block");
+
+                toggleReadyButton.hidden = !toggleReadyButton.hidden;
+                playingElementsBlock.hidden = !playingElementsBlock.hidden;
+
+                if (data.type === "letters") {
+                    statusField.textContent = "playing";
+                    document.getElementById("letters").textContent = [...data.value].join(", ");
+                    document.getElementById("wordBox").value = "";
+                } else if (data.type === "game-over") {
+                    statusField.textContent = "not ready";
+                    alert(data.won ? "You win!" : `You lost. The word was '${data.word}'.`);
+                }
+                    
+            };
+            ws.onopen = event => (document.getElementById("status").textContent = "not ready");
+            ws.onclose = event => (document.getElementById("status").textContent = "disconnected");
+
+            document.getElementById("toggle-ready-button").addEventListener("click", () => {
+                let message = JSON.stringify({"type": "toggle-ready"});
+                ws.send(message);
+            });
+
+            document.getElementById("wordBox").addEventListener("keyup", event => {
+                if (event.key === "Enter")
+                    document.getElementById("guess-button").click(); 
+            });
+
+            document.getElementById("guess-button").addEventListener("click", () => {
+                let message = JSON.stringify({
+                    "type": "guess",
+                    "value": document.getElementById("wordBox").value
+                });
+                console.log(`[TO SERVER] ${message}`);
+                ws.send(message);
+            });
+        });
+    </script>
+</head>
+<body>
+    Status: <span id="status">disconnected</span>
+    <br>
+    <br>
+    <input type="button" value="Toggle ready" id="toggle-ready-button">
+    <div id="playing-elements-block" hidden>
+        Letters are: <span id="letters"></span>
+        <br>
+        <br>
+        Word: <input type="text" id="wordBox">
+        <br>
+        <br>
+        <input type="button" value="Guess" id="guess-button">
+    </div>
+</body>
