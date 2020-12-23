@@ -21,7 +21,7 @@ async def try_start():
     global GAME_STATE
     global CURRENT_WORD
 
-    if len(CONNECTIONS) > 1 and all(CONNECTIONS.values()):
+    if GAME_STATE == "lobby" and len(CONNECTIONS) > 1 and all(CONNECTIONS.values()):
         GAME_STATE = "playing"
         CURRENT_WORD, shuffled = utils.pick_word()
         print(f"[WORD SELECTED] {CURRENT_WORD}")
@@ -39,6 +39,7 @@ async def try_end(winner):
     global CURRENT_WORD
 
     GAME_STATE = "lobby"
+    
     for x in list(CONNECTIONS):
         CONNECTIONS[x] = False
     
