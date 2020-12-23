@@ -60,13 +60,12 @@ async def handle_message(websocket, data):
 
     utils.redis_publish(redis, f"{sender[0]}:{sender[1]}", data["type"])
 
-    if data["type"] == "toggle-ready":
+    if data["type"] == "toggle-ready" and GAME_STATE == "lobby":
         CONNECTIONS[websocket] = not CONNECTIONS[websocket]
         await websocket.send(json.dumps({"type": "ready-state", "value": CONNECTIONS[websocket]}))
         await try_start()
-    elif data["type"] == "guess":
-        if GAME_STATE == "playing" and data["value"] == CURRENT_WORD:
-            await try_end(websocket)
+    elif data["type"] == "guess" and GAME_STATE == "playing" and data["value"] == CURRENT_WORD:
+        await try_end(websocket)
 
 
 async def handle_disconnect(websocket):
