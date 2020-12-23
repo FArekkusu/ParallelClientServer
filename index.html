@@ -6,7 +6,8 @@
     </style>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            let ws = new WebSocket("ws://127.0.0.1:5000/connect");
+            // let ws = new WebSocket("ws://127.0.0.1:5000/connect");
+            let ws = new WebSocket("wss://FunnyTidyConferences.elmomentodibruh.repl.co/connect");
             ws.onmessage = event => {
                 console.log(`[FROM SERVER] ${event.data}`);
                 let data = JSON.parse(event.data);
@@ -38,7 +39,12 @@
                     
             };
             ws.onopen = event => (document.getElementById("status").textContent = "not ready");
-            ws.onclose = event => (document.getElementById("status").textContent = "disconnected");
+            ws.onclose = event => {
+                document.getElementById("status").textContent = "disconnected";
+                document.getElementById("toggle-ready-button").hidden = true;
+                document.getElementById("playing-elements-block").hidden = true;
+
+            };
 
             document.getElementById("toggle-ready-button").addEventListener("click", () => {
                 let message = JSON.stringify({"type": "toggle-ready"});
