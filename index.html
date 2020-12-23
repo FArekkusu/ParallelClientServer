@@ -6,8 +6,7 @@
     </style>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            // let ws = new WebSocket("ws://127.0.0.1:5000/connect");
-            let ws = new WebSocket("wss://FunnyTidyConferences.elmomentodibruh.repl.co/connect");
+            let ws = new WebSocket("ws://127.0.0.1:5000/connect");
             ws.onmessage = event => {
                 console.log(`[FROM SERVER] ${event.data}`);
                 let data = JSON.parse(event.data);
