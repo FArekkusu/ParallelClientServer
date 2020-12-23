@@ -35,14 +35,12 @@
                     statusField.textContent = "not ready";
                     alert(data.won ? "You win!" : `You lost. The word was '${data.word}'.`);
                 }
-                    
             };
             ws.onopen = event => (document.getElementById("status").textContent = "not ready");
             ws.onclose = event => {
                 document.getElementById("status").textContent = "disconnected";
                 document.getElementById("toggle-ready-button").hidden = true;
                 document.getElementById("playing-elements-block").hidden = true;
-
             };
 
             document.getElementById("toggle-ready-button").addEventListener("click", () => {
