@@ -4,10 +4,10 @@ import json
 import websockets
 import utils
 
+IS_PLAYING = False
+CURRENT_WORD = None
 CONNECTIONS = {}
 HTTP_RESPONSE = utils.prepare_http_response("index.html")
-GAME_STATE = "lobby"
-CURRENT_WORD = None
 
 
 async def process_request(path, request_headers):
@@ -17,28 +17,33 @@ async def process_request(path, request_headers):
         return HTTP_RESPONSE
 
 
-async def try_start():
-    global GAME_STATE
+def can_start():
+    global IS_PLAYING
+
+    return not IS_PLAYING and len(CONNECTIONS) > 1 and all(CONNECTIONS.values())
+
+
+async def start_game():
+    global IS_PLAYING
     global CURRENT_WORD
 
-    if GAME_STATE == "lobby" and len(CONNECTIONS) > 1 and all(CONNECTIONS.values()):
-        GAME_STATE = "playing"
-        CURRENT_WORD, shuffled = utils.pick_word()
-        print(f"[WORD SELECTED] {CURRENT_WORD}")
+    IS_PLAYING = True
+    CURRENT_WORD, shuffled = utils.pick_word()
+    print(f"[WORD SELECTED] {CURRENT_WORD}")
 
-        await asyncio.wait([
-            ws.send(json.dumps({"type": "letters", "value": shuffled}))
-            for ws in CONNECTIONS
-        ])
+    await asyncio.wait([
+        ws.send(json.dumps({"type": "letters", "value": shuffled}))
+        for ws in CONNECTIONS
+    ])
 
-        utils.redis_publish(redis, None, "start-game")
+    utils.redis_publish(redis, None, "start-game")
 
 
-async def try_end(winner):
-    global GAME_STATE
+async def end_game(winner):
+    global IS_PLAYING
     global CURRENT_WORD
 
-    GAME_STATE = "lobby"
+    IS_PLAYING = False
     
     for x in list(CONNECTIONS):
         CONNECTIONS[x] = False
@@ -52,7 +57,7 @@ async def try_end(winner):
 
 
 async def handle_message(websocket, data):
-    global GAME_STATE
+    global IS_PLAYING
     global CURRENT_WORD
 
     data = json.loads(data)
@@ -61,16 +66,18 @@ async def handle_message(websocket, data):
 
     utils.redis_publish(redis, f"{sender[0]}:{sender[1]}", data["type"])
 
-    if data["type"] == "toggle-ready" and GAME_STATE == "lobby":
+    if data["type"] == "toggle-ready" and not IS_PLAYING:
         CONNECTIONS[websocket] = not CONNECTIONS[websocket]
         await websocket.send(json.dumps({"type": "ready-state", "value": CONNECTIONS[websocket]}))
-        await try_start()
-    elif data["type"] == "guess" and GAME_STATE == "playing" and data["value"] == CURRENT_WORD:
-        await try_end(websocket)
+        
+        if can_start():
+            await start_game()
+    elif data["type"] == "guess" and IS_PLAYING and data["value"] == CURRENT_WORD:
+        await end_game(websocket)
 
 
 async def handle_disconnect(websocket):
-    global GAME_STATE
+    global IS_PLAYING
 
     sender = websocket.remote_address
 
@@ -78,21 +85,20 @@ async def handle_disconnect(websocket):
     del CONNECTIONS[websocket]
     print(f"[DISCONNECTED] {sender}")
 
-    if len(CONNECTIONS) < 2:
-        if len(CONNECTIONS) == 1 and GAME_STATE == "playing":
-            await try_end(next(iter(CONNECTIONS)))
-        GAME_STATE = "lobby"
-    else:
-        await try_start()
+    if can_start():
+        await start_game()
+    elif len(CONNECTIONS) < 2 and IS_PLAYING:
+        winner = next(iter(CONNECTIONS))
+        await end_game(winner)
 
 
 async def message_handler(websocket, path):
-    global GAME_STATE
+    global IS_PLAYING
 
     sender = websocket.remote_address
     utils.redis_publish(redis, f"{sender[0]}:{sender[1]}", "establish-connection")
 
-    if path != "/connect" or GAME_STATE == "playing":
+    if path != "/connect" or IS_PLAYING:
         reason = "incorrect-url" if path != "/connect" else "game-in-progress"
         await websocket.send(json.dumps({"type": "connection-error", "reason": reason}))
         utils.redis_publish(redis, f"{sender[0]}:{sender[1]}", "deny-connection")
