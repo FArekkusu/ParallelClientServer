@@ -36,7 +36,10 @@
                     alert(data.won ? "You win!" : `You lost. The word was '${data.word}'.`);
                 }
             };
-            ws.onopen = event => (document.getElementById("status").textContent = "not ready");
+            ws.onopen = event => {
+                document.getElementById("status").textContent = "not ready";
+                document.getElementById("toggle-ready-button").hidden = false;
+            };
             ws.onclose = event => {
                 document.getElementById("status").textContent = "disconnected";
                 document.getElementById("toggle-ready-button").hidden = true;
@@ -45,6 +48,7 @@
 
             document.getElementById("toggle-ready-button").addEventListener("click", () => {
                 let message = JSON.stringify({"type": "toggle-ready"});
+                console.log(`[TO SERVER] ${message}`);
                 ws.send(message);
             });
 
@@ -68,7 +72,7 @@
     Status: <span id="status">disconnected</span>
     <br>
     <br>
-    <input type="button" value="Toggle ready" id="toggle-ready-button">
+    <input type="button" value="Toggle ready" id="toggle-ready-button" hidden>
     <div id="playing-elements-block" hidden>
         Letters are: <span id="letters"></span>
         <br>
